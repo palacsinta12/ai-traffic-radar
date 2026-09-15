@@ -37,7 +37,6 @@ env/
 # Model weights and inference artifacts
 *.pt
 *.onnx
-
 # Standard generated media and archives
 *.mp4
 *.avi
@@ -45,6 +44,7 @@ env/
 *.zip
 *.tar.gz
 *.xlsx
+*.pptx
 
 # Jupyter
 .ipynb_checkpoints/
