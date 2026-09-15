@@ -26,6 +26,9 @@ env/
 /dataset/
 /runs/
 /assets/
+/deliverables/
+/crossing_data/
+/docs/
 !assets/**/*.gif
 !assets/**/*.png
 !assets/*.gif
@@ -41,6 +44,7 @@ env/
 *.mov
 *.zip
 *.tar.gz
+*.xlsx
 
 # Jupyter
 .ipynb_checkpoints/
