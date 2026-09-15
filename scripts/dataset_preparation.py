@@ -9,6 +9,7 @@ objects by requiring minimum radar signature support.
 import os
 import shutil
 import logging
+import random
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -29,10 +30,10 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
 # Bounding Box Physical Extent Priors (Width, Length) in meters
 CLASS_PRIORS = {
-    0: (0.8, 0.8),  # Pedestrian
-    1: (0.8, 2.0),  # Bicycle
-    2: (2.0, 4.8),  # Car
-    3: (1.0, 2.0)   # Cyclist
+    0: (1.2, 1.2),  # Pedestrian: expanded from 0.8 to absorb radar limb smearing
+    1: (1.0, 2.2),  # Bicycle
+    2: (2.2, 4.8),  # Car
+    3: (1.2, 2.2)   # Cyclist: expanded width
 }
 
 def setup_directories():
@@ -86,14 +87,11 @@ def sync_and_extract_labels(folder: Path):
 
     labels_data = []
     
-    
-    
     # Subsample based on domain
     for clock in unique_clocks[::5]:
         img_file = bev_dir / f"{int(clock)}.png"
         if not img_file.exists(): continue
     
-
         closest_frame = np.argmin(np.abs(np.array(cam_ts) - clock))
         if abs(cam_ts[closest_frame] - clock) > 100: 
             continue
@@ -113,8 +111,15 @@ def sync_and_extract_labels(folder: Path):
                 close_pts = r_pts[dist < 2.0]
                 if not close_pts.empty:
                     c_x = close_pts['RealXData'].median()
-                    c_y = close_pts['RealYData'].min() 
-                    has_radar_support = True
+                    
+                    # Only snap Y to the most recent radar returns in the cluster
+                    current_pts = close_pts[close_pts['Window Clock'] == clock]
+                    if not current_pts.empty:
+                        c_y = current_pts['RealYData'].min() # Front edge of the CURRENT position
+                    else:
+                        c_y = close_pts['RealYData'].median() # Fallback
+                    
+                    has_radar_support = True 
             
             if not has_radar_support:
                 continue
@@ -144,7 +149,7 @@ def sync_and_extract_labels(folder: Path):
     return labels_data
 
 def build_dataset():
-    """Compiles the final YOLO dataset with train/val splits and domain oversampling."""
+    """Compiles the final YOLO dataset with train/val splits."""
     setup_directories()
     folders = [f for f in MEASUREMENTS_DIR.iterdir() if f.is_dir() and f.name not in ["reference_points", "ref_pts"]]
     
@@ -158,27 +163,20 @@ def build_dataset():
     if not valid_folders:
         raise RuntimeError("No valid, annotated measurement folders found.")
 
-    # Validation reserved exclusively for target environment data
-    target_folders = [f for f in valid_folders if "202605" in f.name]
-    base_folders = [f for f in valid_folders if "202605" not in f.name]
+    # --- RANDOM TRAIN/VAL FOLDER SPLIT ---
+    # Sort first to ensure deterministic behavior across systems, then shuffle
+    valid_folders.sort()
+    random.seed(42)  # Seed for reproducible random splits
+    random.shuffle(valid_folders)
     
-    guaranteed_val_names = [
-        "20260506-151215_bike+ped",
-        "20260506-153613_car+bikes",
-        "20260506-161743_mix",
-        "20260506-151900-ped+bike-mix",
-        "20260506-150006_car",
-        "20260506-151731-bike-change+bike-pusher"
-    ]
-    
-    val_folders = [f for f in target_folders if f.name in guaranteed_val_names]
-    target_train = [f for f in target_folders if f.name not in guaranteed_val_names]
-
-    # Oversample the target domain to combat class imbalance
-    train_folders = base_folders + target_train
+    # Calculate 80/20 split index
+    split_idx = int(len(valid_folders) * 0.8)
+    train_folders = valid_folders[:split_idx]
+    val_folders = valid_folders[split_idx:]
     
     logging.info(f"--- DATASET COMPILATION ---")
-    logging.info(f"Validation strictly on target environment: {[f.name for f in val_folders]}")
+    logging.info(f"Randomly selected {len(train_folders)} folders for Training.")
+    logging.info(f"Randomly selected {len(val_folders)} folders for Validation: {[f.name for f in val_folders]}")
     
     def process_split(split_folders, split_name):
         total = 0

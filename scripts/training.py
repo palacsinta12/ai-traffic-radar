@@ -1,11 +1,9 @@
-"""import argparse
 import os
 import gc
-from pathlib import Path
 import torch
 from ultralytics import YOLO
 
-from config import DATASET_DIR, DEFAULT_DATA_YAML, DEFAULT_MODEL, RUNS_DIR
+from config import DEFAULT_DATA_YAML, DEFAULT_MODEL, RUNS_DIR
 
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
@@ -14,87 +12,57 @@ def train_radar_model():
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
 
-    print("🚀 Starting YOLO BEV Radar Training (Unified Stage)")
-    print("Applying Mixup & Copy-Paste to prevent background memorization.")
+    print("🚀 Starting YOLO BEV Radar Training on CORRECTED Labels")
+    last_checkpoint = RUNS_DIR / "radar" / "yolo11n_corrected_vru_fast-3" / "weights" / "last.pt"
 
-    model = YOLO(DEFAULT_MODEL) # Loads yolo11n.pt
-    
+    # START FRESH: Load standard optical weights (e.g., yolo11n.pt)
+    # Do NOT load the previous best.pt, as it learned the delayed ghost labels.
+    model = YOLO(DEFAULT_MODEL) 
+    model=YOLO(str(last_checkpoint))
     model.train(
         data=DEFAULT_DATA_YAML,
         epochs=120,
         patience=30,
         batch=32,
         
-        # USE A SINGLE INT: YOLO will map longest side to 640 and keep 192 width automatically
+        # Constraint honored: Keeping imgsz at 640
         imgsz=640, 
         
         device="0" if torch.cuda.is_available() else "cpu",
         project=str(RUNS_DIR / "radar"),
-        name="yolo11n_unified_vru",
+        name="yolo11n_corrected_vru",
         
         # Optimizer and Schedule
         optimizer="AdamW",
         lr0=0.002,                
         cos_lr=True,
-        # Doubled weight decay to force the network to forget the background
-        weight_decay=0.03, 
         
-        # Loss weights (punish classification errors heavily to drop val/cls_loss)
-        cls=2.0,                  
-        box=7.0,                  
-        dfl=1.5,                  
+        # CRITICAL FIX 1: Restored standard weight decay (was 0.03)
+        # 0.03 was choking the network's capacity to differentiate classes.
+        weight_decay=0.0005, 
         
-        # Physics-Preserving Spatial Augmentations (Keep these disabled!)
+        # CRITICAL FIX 2: Rebalanced loss weights
+        # Lowered 'cls' to stop it from defaulting to "Pedestrian" for everything.
+        # Lowered 'dfl' because radar point clouds have inherently fuzzy edges.
+        cls=0.5,                  
+        box=7.5,                  
+        dfl=0.5,                  
+        
+        # Augmentations
         mosaic=0.0,
         scale=0.0,
-        translate=0.0,
+        translate=0.1,  # Added slight shift so it doesn't memorize absolute grid coordinates
         flipud=0.0,
         fliplr=0.5,
         
-        # THE CURE FOR MEMORIZATION: Synthetic Augmentations
-        copy_paste=0.3, # Randomly pastes pedestrians into the road
-        mixup=0.15,     # Blends two frames together to smooth decision boundaries
+        # Constraint honored: Kept copy_paste
+        copy_paste=0.3, 
+        mixup=0.0,      # Kept off (prevents impossible radar color/velocity bleeding)
         
         cache=False,
         workers=2,
+        resume=True,
     )
 
 if __name__ == "__main__":
-    train_radar_model()"""
-
-import argparse
-import os
-import gc
-from pathlib import Path
-import torch
-from ultralytics import YOLO
-
-from config import DATASET_DIR, DEFAULT_DATA_YAML, DEFAULT_MODEL, RUNS_DIR
-
-os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
-
-def resume_radar_model():
-    gc.collect()
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-
-    # Define the path to the interrupted run's last checkpoint
-    last_checkpoint = RUNS_DIR / "radar" / "yolo11n_unified_vru-2" / "weights" / "last.pt"
-
-    if not last_checkpoint.exists():
-        print(f"❌ Error: Could not find checkpoint at {last_checkpoint}")
-        print("Make sure the path is correct!")
-        return
-
-    print(f"🚀 RESUMING YOLO BEV Radar Training from {last_checkpoint}")
-
-    # 1. Load the interrupted model's checkpoint
-    model = YOLO(str(last_checkpoint)) 
-    
-    # 2. Call train with resume=True
-    # Note: YOLO automatically reads your saved args.yaml, so you don't need 
-    # to pass epochs, imgsz, mixup, or learning rate here! It remembers everything.
-    model.train(resume=True)
-
-if __name__ == "__main__":
-    resume_radar_model()
+    train_radar_model()

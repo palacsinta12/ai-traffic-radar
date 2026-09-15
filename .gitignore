@@ -21,17 +21,14 @@ env/
 .mypy_cache/
 .ruff_cache/
 
-# NDA-sensitive data directories and project execution artifacts
-/measurements/
-/dataset/
-/runs/
+Data directories and project execution artifacts
+/measurements/*
+/dataset/*
+/assets/private/
 /deliverables/
 /crossing_data/
 /docs/
-!assets/**/*.gif
-!assets/**/*.png
-!assets/*.gif
-!assets/*.png
+/runs/radar/*
 
 # Model weights and inference artifacts
 *.pt
