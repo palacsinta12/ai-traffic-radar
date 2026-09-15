@@ -1,0 +1,22 @@
+Megállapodások a demóhoz (traininghez):
+- zöldterület mask - csak az úttest számít (nem várható a zöld területen objektum)
+- range: 70m hosszú és 20m széles (+-10m) területtel dolgozzatok a grid mapp-nél
+- classok: ped, cary, cyclist
+- hyper param opt. - annotáció inferencnél nem a default paraméter (argument) setup  az ideális -> találjatok jobb beállítást (pl. kisebb confidencia szintek, IoU, buffer)
+- bike merge: nem lesz bike change (bike ->ped-> bike), mert az annotáció is gyenge a kerékpár, tehát:
+	ped+bike = cyclist
+	bike pusher = cyclist
+- nem lesz tömeges pedestrian crossing, mert alig volt response róla (nincs radar irányú sebesség komponens, azaz doppler)
+- alkalmazzátok a grid mappping lépés előtt a cikkben említett módszereket: temporal accumulation (point aggregation) + cell propagation, esetleg dopper skewing
+- használjátok a Kaggle GPU-t gyorsabb tanításra
+- össz "inference time" <40ms az elvárás
+
+
+5 kritikus lépés (hozzáadott érték):
+- annotation inference config setup (i.e. conf, IoU, buffer)
+- annotation postprocessing (i.e. bike merge, ghost detection filter)
+- grid mapping 
+	preprocess (temporal acc, cell propagation)
+	setup (channels, resolution)
+- training dataset: labeling (point cluster + camera annotation pairing)
+- training config setup

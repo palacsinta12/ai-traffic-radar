@@ -1,0 +1,2 @@
+UTCTime,AlertDirection,TimestampBegin,TimestampEnd,TimeSpan,BodySpeed,YawRate,TimeStamp_GPS,Longitude,Latitude,Altitude
+15:07:21,FL,25000,25280,280,0,0,0,0.000000,0.000000,0.000000
