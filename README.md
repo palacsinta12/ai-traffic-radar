@@ -56,12 +56,12 @@ Developed in collaboration with Furukawa Electric Institute of Technology (FETI)
 ## Repository Structure
 
 ```text
-radar_AI_project/
+ai-traffic-radar/
 ├── scripts/
 │   ├── annotation_pipeline.py      # Camera detection (YOLO), ByteTrack & homography projection
 │   ├── grid_mapping_pipeline.py    # Rasterizes radar point clouds into dense 3-channel BEV images
 │   ├── dataset_preparation.py      # Radar-camera synchronization, cluster snapping & dataset split
-│   ├── train_fast_radar.py         # YOLO11s model training with radar-tailored hyperparameters
+│   ├── training.py                 # YOLO11s model training with radar-tailored hyperparameters
 │   ├── fusion_pipeline.py          # Multimodal evaluation and side-by-side verification renderer
 │   ├── export_model.py             # Exports trained PyTorch checkpoints to ONNX format
 │   └── config.py                   # Central workspace paths, sensor limits, and resolution constants
@@ -70,7 +70,7 @@ radar_AI_project/
 │   │   ├── REF_PTS_2025.csv
 │   │   ├── REF_PTS_202602.csv
 │   │   └── REF_PTS_202605.csv
-│   └── <measurement_id>/           # Session recordings (e.g. 20260218-134121_mix)
+│   └── <measurement_id>/           # Session recordings
 │       ├── export/
 │       │   ├── radar1_resp.csv     # Raw 24 GHz pulse-Doppler detections (Amp, Doppler, X, Y)
 │       │   └── video1.timestamps   # Hardware millisecond timestamps for each camera frame
@@ -110,8 +110,8 @@ flowchart TD
         GRID --> CH0["Ch 0 (Blue): Point Density"]
         GRID --> CH1["Ch 1 (Green): Log-Scaled Amp (x R²)"]
         GRID --> CH2["Ch 2 (Red): Sqrt-Skewed Doppler"]
-        CH0 & CH1 & CH2 --> MORPH["Morphological Cell Spreading<br/>(3x3 Dilation + Neutral 127 Pad)"]
-        MORPH --> BEV_IMG["Padded BEV Tensor<br/>(644 x 216 x 3)"]
+        CH0 & CH1 & CH2 --> MORPH["Morphological Cell Spreading<br/>(3x3 Dilation, Zero Padding)"]
+        MORPH --> BEV_IMG["BEV Tensor<br/>(640 x 192 x 3)"]
     end
 
     subgraph REFINEMENT ["Dataset Alignment & Snapping"]
@@ -122,7 +122,7 @@ flowchart TD
     end
 
     subgraph INFERENCE ["Model & Deployment"]
-        CORR --> TRAIN["YOLO11n Fine-Tuning<br/>(Physics-Preserving Augmentations)"]
+        CORR --> TRAIN["YOLO11s Fine-Tuning<br/>(Physics-Preserving Augmentations)"]
         TRAIN --> ONNX["ONNX Runtime / TensorRT<br/>(< 40 ms Latency)"]
     end
 ```
@@ -154,20 +154,9 @@ The dataset covers multi-modal road scenarios recorded across varied weather and
 
 | Class | Physical Prior (W x L) | Characteristics |
 | :--- | :--- | :--- |
-| **Pedestrian** | 0.8 m x 0.8 m | Micro-Doppler limb motion, sparse point returns |
-| **Cyclist** | 1.0 m x 2.0 m | Fast linear motion with pedaling Doppler spread |
+| **Pedestrian** | 1.2 m x 1.2 m | Micro-Doppler limb motion, sparse point returns |
+| **Cyclist** | 1.2 m x 2.2 m | Fast linear motion with pedaling Doppler spread |
 | **Car** | 2.0 m x 4.8 m | High-amplitude corner-reflector returns, multi-point clusters |
-
----
-
-## Real-Time Performance & Deployment
-
-| Model Architecture | Input Resolution | mAP@50 | Latency (NVIDIA RTX 4050) | Target Hardware |
-| :--- | :--- | :--- | :--- | :--- |
-| **YOLO11s (Baseline)** | 644 x 216 | 0.406 | ~14.2 ms | Workstation / Edge Server |
-| **YOLO11n (Optimized)** | 644 x 216 | *Pending* | **~3.8 ms** | Jetson Orin Nano / Xavier |
-
-Both models strictly satisfy the live sensor frame budget (40 ms, or 25 FPS).
 
 ---
 
