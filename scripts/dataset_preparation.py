@@ -165,18 +165,25 @@ def build_dataset():
 
     # --- RANDOM TRAIN/VAL FOLDER SPLIT ---
     # Sort first to ensure deterministic behavior across systems, then shuffle
-    valid_folders.sort()
-    random.seed(42)  # Seed for reproducible random splits
-    random.shuffle(valid_folders)
+    # 1. Separate clean target environment (202605) from older legacy data
+    target_folders = [f for f in valid_folders if "202605" in f.name]
+    legacy_folders = [f for f in valid_folders if "202605" not in f.name]
     
-    # Calculate 80/20 split index
-    split_idx = int(len(valid_folders) * 0.8)
-    train_folders = valid_folders[:split_idx]
-    val_folders = valid_folders[split_idx:]
+    # 2. Randomly split the clean 202605 folders (80% train / 20% val)
+    target_folders.sort()
+    random.seed(42)  # Deterministic seed
+    random.shuffle(target_folders)
+    
+    split_idx = max(1, int(len(target_folders) * 0.8))
+    target_train = target_folders[:split_idx]
+    val_folders  = target_folders[split_idx:]  # Clean, uncorrupted validation set
+    
+    # 3. Training set gets legacy data + target training data
+    train_folders = legacy_folders + target_train
     
     logging.info(f"--- DATASET COMPILATION ---")
-    logging.info(f"Randomly selected {len(train_folders)} folders for Training.")
-    logging.info(f"Randomly selected {len(val_folders)} folders for Validation: {[f.name for f in val_folders]}")
+    logging.info(f"Training on {len(train_folders)} folders (Legacy + 80% of 202605).")
+    logging.info(f"Randomly validating on {len(val_folders)} clean 202605 folders: {[f.name for f in val_folders]}")
     
     def process_split(split_folders, split_name):
         total = 0
