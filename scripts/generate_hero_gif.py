@@ -99,9 +99,11 @@ def render_panel(targets):
         grid[v, u, 1] = max(grid[v, u, 1], log_amp[i])
         grid[v, u, 2] = skewed_vel[i] if abs(skewed_vel[i]) > abs(grid[v, u, 2]) else grid[v, u, 2]
 
-    ch0 = np.clip(grid[:, :, 0] / 5.0, 0, 1) * 255
-    ch1 = np.clip(grid[:, :, 1] / 15.0, 0, 1) * 255
-    ch2 = np.clip((grid[:, :, 2] / 5.5) * 127 + 127, 0, 255)
+    
+    ch0 = np.clip(grid[:, :, 0] / 8.0, 0, 1) * 120
+    ch1 = np.clip(grid[:, :, 1] / 18.0, 0, 1) * 150
+    ch2 = np.clip((grid[:, :, 2] / 4.0) * 127 + 127, 0, 255)
+
     ch2[grid[:, :, 0] == 0] = 0  
     
     img = np.stack([ch0, ch1, ch2], axis=-1).astype(np.uint8)
@@ -130,7 +132,8 @@ def render_panel(targets):
         x2, y2 = px_cx + px_w//2, px_cy + px_l//2
         
         cv2.rectangle(padded, (x1, y1), (x2, y2), t.color, 1)
-        label = f"{t.cls_name} {t.conf:.2f}"
+        speed = abs(t.vy) if abs(t.vy) > 0.1 else abs(t.vx)
+        label = f"{t.cls_name} {t.conf:.2f} | {speed:.1f}m/s"
         (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.35, 1)
         cv2.rectangle(padded, (x1, y1 - th - 4), (x1 + tw, y1), t.color, -1)
         cv2.putText(padded, label, (x1, y1 - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 0, 0), 1, cv2.LINE_AA)
@@ -148,11 +151,17 @@ dt = 1.0 / FPS
 
 # --- SCENARIO A: VRU Intersection ---
 # Car will start fast, brake to a crawl to yield, then speed up again
-scenario_A = [
+'''scenario_A = [
     RigidTarget(1, "Car", 2.0, 4.8, x=-2.0, y=60.0, vx=0.0, vy=-15.0, base_amp=2e6, density=20, color=C_CAR),
     RigidTarget(2, "Cyc", 1.0, 2.0, x=3.5, y=5.0, vx=0.0, vy=9.0, base_amp=1e5, density=15, color=C_CYC),
     RigidTarget(0, "Ped", 0.8, 0.8, x=-8.0, y=25.0, vx=1.8, vy=0.0, base_amp=2e4, density=25, color=C_PED)
+]'''
+scenario_A = [
+    RigidTarget(1, "Car", 2.0, 4.8, x=-2.0, y=60.0, vx=0.0, vy=-15.0, base_amp=8e4, density=8, color=C_CAR),
+    RigidTarget(2, "Cyc", 1.0, 2.0, x=3.5, y=5.0, vx=0.0, vy=9.0, base_amp=1e5, density=15, color=C_CYC),
+    RigidTarget(0, "Ped", 0.8, 0.8, x=-8.0, y=25.0, vx=1.8, vy=0.0, base_amp=2e4, density=25, color=C_PED)
 ]
+
 
 # --- SCENARIO B: High-Speed Loop ---
 scenario_B = [

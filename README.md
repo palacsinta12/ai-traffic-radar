@@ -31,6 +31,63 @@ This project bridges that gap by:
 4. Exporting the trained network to ONNX for sub-40 ms inference throughput on edge accelerators.
 
 ---
+# Road User Detection in Radar Bird's-Eye View
+
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://python.org)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org)
+[![Ultralytics YOLO](https://img.shields.io/badge/YOLO-11n%20%7C%2011s-00FFFF)](https://github.com/ultralytics/ultralytics)
+[![ONNX](https://img.shields.io/badge/ONNX-Ready-005CED?logo=onnx&logoColor=white)](https://onnx.ai)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+An end-to-end deep learning pipeline that transforms sparse 24 GHz pulse-Doppler radar point clouds into dense Bird's-Eye View (BEV) feature representations. This project utilizes cross-modal weak supervision, employing an optical camera strictly for automated dataset annotation during training, to train real-time vision detectors (YOLO11) that localize and classify road users solely from radar telemetry at inference time.
+
+Developed in collaboration with Furukawa Electric Institute of Technology (FETI).
+
+---
+
+## Inference Demonstration
+
+![Radar BEV Inference Dashboard](assets/hero_dashboard_extended.gif)
+
+*Synthetic visualization of the YOLO11 network processing 3-channel radar representations in real-time (40 ms cycles). Bounding boxes indicate metric-accurate localizations directly inferred from radar cross-section and Doppler velocity signatures. Notice the yielding car in the left panel: the BEV tensor natively captures its deceleration as its Doppler color signature visually shifts toward neutral red/grey when it brakes for the crossing pedestrian.*
+
+---
+
+## Repository Structure
+
+```text
+radar_AI_project/
+├── scripts/
+│   ├── annotation_pipeline.py      # Camera detection (YOLO), ByteTrack & homography projection
+│   ├── grid_mapping_pipeline.py    # Rasterizes radar point clouds into dense 3-channel BEV images
+│   ├── dataset_preparation.py      # Radar-camera synchronization, cluster snapping & dataset split
+│   ├── train_fast_radar.py         # YOLO11s model training with radar-tailored hyperparameters
+│   ├── fusion_pipeline.py          # Multimodal evaluation and side-by-side verification renderer
+│   ├── export_model.py             # Exports trained PyTorch checkpoints to ONNX format
+│   └── config.py                   # Central workspace paths, sensor limits, and resolution constants
+├── measurements/
+│   ├── reference_points/           # Surveyed ground-plane calibration points for homography
+│   │   ├── REF_PTS_2025.csv
+│   │   ├── REF_PTS_202602.csv
+│   │   └── REF_PTS_202605.csv
+│   └── <measurement_id>/           # Session recordings (e.g. 20260218-134121_mix)
+│       ├── export/
+│       │   ├── radar1_resp.csv     # Raw 24 GHz pulse-Doppler detections (Amp, Doppler, X, Y)
+│       │   └── video1.timestamps   # Hardware millisecond timestamps for each camera frame
+│       ├── video1.avi              # Aligned reference camera video (640x480 @ 25 FPS)
+│       └── detections.csv          # Projected bounding boxes in BEV coordinates
+├── dataset/                        # Auto-generated Ultralytics training set
+│   ├── images/
+│   │   ├── train/                  # BEV pseudo-images (640x192 PNGs)
+│   │   └── val/
+│   ├── labels/
+│   │   ├── train/                  # Snapped YOLO format annotations (.txt)
+│   │   └── val/
+│   └── data.yaml                   # Dataset descriptor and target class mappings
+├── models/                         # Pretrained base models and exported ONNX engines
+└── docs/                           # Technical briefs, homography schemes, and performance reports
+```
+---
 
 ## Architecture & Data Flow
 
