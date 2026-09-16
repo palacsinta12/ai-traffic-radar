@@ -34,16 +34,6 @@ An end-to-end deep learning pipeline that transforms sparse 24 GHz pulse-Doppler
 
 Developed in collaboration with Furukawa Electric Institute of Technology (FETI).
 
----
-
-## Inference Demonstration
-
-![Radar BEV Inference Dashboard](assets/hero_dashboard_extended.gif)
-
-*Synthetic visualization of the YOLO11 network processing 3-channel radar representations in real-time (40 ms cycles). Bounding boxes indicate metric-accurate localizations directly inferred from radar cross-section and Doppler velocity signatures. Notice the yielding car in the left panel: the BEV tensor natively captures its deceleration as its Doppler color signature visually shifts toward neutral red/grey when it brakes for the crossing pedestrian.*
-
----
-
 ## Repository Structure
 
 ```text
